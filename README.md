@@ -13,7 +13,7 @@ Screenshot
 ## Installing
 ```
 git clone https://github.com/mdtomo/wispy.git
-./setup.py
+python setup.py install
 ```
 
 ## Example Usage
