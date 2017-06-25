@@ -1,11 +1,10 @@
-#!/usr/bin/env python3
-
-from distutils.core import setup
+from setuptools import setup, find_packages 
 
 setup(
     name='wispy',
-    version='0.0.1',
+    version='0.1',
     license='MIT',
     long_description=open('README.md').read(),
-    packages=['wispy', 'wispy.python_radiotap', 'pcapy'],
+    packages=find_packages(),
+    install_requires=['pcapy'],
 )
