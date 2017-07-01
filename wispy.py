@@ -4,45 +4,51 @@
 
 import sys
 import subprocess
-import logging
 import pcapy
-import struct
 import time
-import radiotap
-
+import threading
+import itertools
+import struct
 
 INTERFACE = ''
+CHANNEL_HOP_DELAY = 5
+SHUTDOWN = False
 
 def main():
-    if len(sys.argv) != 2:
-        print('\nUsage: wispy.py <wlan-interface>\n')
+    if len(sys.argv) == 3:
+        global CHANNEL_HOP_DELAY
+        CHANNEL_HOP_DELAY = sys.argv[2]
+    elif len(sys.argv) != 2:
+        print('\nUsage: wispy.py <wlan-interface> <channel-hop-delay>\n')
         sys.exit(1)
     else:
         INTERFACE = sys.argv[1]
         if enable_monitor_mode(INTERFACE):
             print('OK')
+            start_channel_hop()
             start_packet_capture()
         else:
             sys.exit(1)
-        #disable_monitor_mode()
 
 def start_packet_capture():
     print('Packet capture starting on ' + INTERFACE)
-    capture = pcapy.open_live(INTERFACE, 1514, 1, 1)
+    time.sleep(1)
+    capture = pcapy.open_live(INTERFACE, 1514, 1, 10)
     capture.setfilter('subtype probe-req')
     while True:
         try:
             header_type = capture.datalink()
             (header, pkt) = capture.next()
-            if header_type == 0x7F and len(pkt) > 0: # 127
+            if header_type == 0x7F and len(pkt) > 0: # 0x7F/127 RadioTap header 
                 packet_handler(header, pkt)    
         except KeyboardInterrupt:
+            global SHUTDOWN
+            SHUTDOWN = True
             disable_monitor_mode()
             break
-
-        
+     
 def enable_monitor_mode(wifi_interface):
-    #try:
+    try:
         global INTERFACE
         INTERFACE = wifi_interface
         print('Starting ' + INTERFACE + ' in monitor mode...', end= ' ')
@@ -50,39 +56,51 @@ def enable_monitor_mode(wifi_interface):
         INTERFACE = wifi_interface + 'mon'
         ifconfig = subprocess.Popen(['ifconfig', INTERFACE, 'up'])
         return True
-    #except:
-       # print('error stuff')
-       # return False
-        
-    
-        
-def disable_monitor_mode():
-    try:
-        print('Removing monitor interface...', end=' ')
-        ifconfig = subprocess.Popen(['ifconfig', INTERFACE, 'down'], stdout=subprocess.PIPE)
-        iw = subprocess.Popen(['iw', 'dev', INTERFACE, 'del'])
-        print('OK')
     except:
-        print('error stuff')
-        sys.exit(1)
-        
- 
+        return False
+              
+def disable_monitor_mode():
+    print('Removing monitor interface...', end=' ')
+    ifconfig = subprocess.Popen(['ifconfig', INTERFACE, 'down'])
+    iw = subprocess.Popen(['iw', 'dev', INTERFACE, 'del'])
+    print('OK')
+    sys.exit(1)
+       
 def packet_handler(header, pkt):
     ts = header.getts()
-    ts = time.strftime('%Y-%m-%d %H:%M:%S:', time.localtime(ts[0])) + str(ts[1])
-    (pktlen, parsed_pkt) = radiotap.radiotap_parse(pkt)
-    rtap_hdr = radiotap.ieee80211_parse(pkt, pktlen)
-    #print(ts + ', Cap Size: %d, Pkt Size: %d' % (header.getcaplen(), header.getlen()))
-    print(ts + ' MAC: %s CHAN: %d RSSI: %d SSID: ' % (rtap_hdr[1]['addr2'], parsed_pkt['chan_freq'], parsed_pkt['dbm_antsignal']), end=' ')
+    ms = '%06i' % int(ts[1])
+    ts = time.strftime('%Y-%m-%d %H:%M:%S:', time.localtime(ts[0])) + str(ms)
+    mac = struct.unpack_from('6s', pkt, 36)
+    macstr = ':'.join(['%02x' % m for m in mac[0]])
+    chan = struct.unpack_from('<H', pkt, 18)
+    rssi = struct.unpack_from('<b', pkt, 22)
     ssidlen = pkt[51]
+    print(str(ts) + ' MAC: %s CHAN: %s(%s) RSSI: %s SSID: ' % (macstr, chan[0], '%02i' % CHANNEL, rssi[0]), end=' ')
     if ssidlen > 0:
         ssid = pkt[52:52+ssidlen].decode('utf-8')
         print(ssid)
     else:
         print('<None>')   
 
-def channel_hop(channel):
-    iwconfig = subprocess.Popen(['iwconfig', INTERFACE, 'channel', channel])
-        
+def change_channel():
+    global CHANNEL
+    while True:
+        if SHUTDOWN == False:
+            subprocess.Popen(['iwconfig', INTERFACE, 'channel', str(CHANNEL)])
+            CHANNEL = next(CHANNEL_ITERATOR)
+            time.sleep(CHANNEL_HOP_DELAY)
+        else:
+            break
+
+def start_channel_hop():
+    channels = list(range(1, 12))
+    global CHANNEL_ITERATOR
+    CHANNEL_ITERATOR = itertools.cycle(channels)
+    global CHANNEL
+    CHANNEL = next(CHANNEL_ITERATOR)
+    threading.Thread(target=change_channel).start()
+    
 if __name__ == '__main__':
     main()
+
+    
