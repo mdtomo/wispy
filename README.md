@@ -32,3 +32,6 @@ Where '10' is the delay in seconds between channel hopping. If omitted 5 seconds
 
 ## Licence
 This project is licensed under the MIT License - see the LICENSE.md file for details.
+
+## Attributions
+Uses [Manuf](https://github.com/coolbho3k/manuf) - A great module for MAC address lookup.
