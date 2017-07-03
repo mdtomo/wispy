@@ -3,8 +3,6 @@
 
 This project uses pcapy, a python wrapper for libpcap to capture 802.11 wifi probe requests. Probe requests are sent by Wifi clients while they are actively scanning for previously connected access points or looking for new access points. It is known that when clients are actively scanning for previously connected access points they will broadcast the name (SSID) of the access point in the probe request. This information can be of interest and provide an insight into the locations where the Wifi client has been connected before. Probe requests also provide a time stamp of when a client is physically in a local area.
 
-Screenshot
-
 ### Prerequisites
 * Python 3.4+
 * A wireless interface capable of monitor mode. e.g. Alfa AWUS036H.
