@@ -9,10 +9,12 @@ import time
 import threading
 import itertools
 import struct
+from manuf import manuf
 
 INTERFACE = ''
 CHANNEL_HOP_DELAY = 5
 SHUTDOWN = False
+MACPARSER = manuf.MacParser()
 
 def main():
     if len(sys.argv) == 3:
@@ -26,7 +28,7 @@ def main():
         if enable_monitor_mode(INTERFACE):
             print('OK')
             start_channel_hop()
-            start_packet_capture()
+            start_packet_capture() 
         else:
             sys.exit(1)
 
@@ -75,12 +77,13 @@ def packet_handler(header, pkt):
     chan = struct.unpack_from('<H', pkt, 18)
     rssi = struct.unpack_from('<b', pkt, 22)
     ssidlen = pkt[51]
-    print(str(ts) + ' MAC: %s CHAN: %s(%s) RSSI: %s SSID: ' % (macstr, chan[0], '%02i' % CHANNEL, rssi[0]), end=' ')
+    print(str(ts) + ' MAC: %s CHAN: %s(%s) RSSI: %s SSID:' % (macstr, chan[0], '%02i' % CHANNEL, rssi[0]), end=' ')
     if ssidlen > 0:
         ssid = pkt[52:52+ssidlen].decode('utf-8')
-        print(ssid)
+        print('%-15s' % ssid, end=' ')
     else:
-        print('<None>')   
+        print('<None>         ', end=' ')
+    print(MACPARSER.get_comment(macstr))
 
 def change_channel():
     global CHANNEL
