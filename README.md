@@ -32,4 +32,5 @@ Where '10' is the delay in seconds between channel hopping. If omitted 5 seconds
 This project is licensed under the MIT License - see the LICENSE.md file for details.
 
 ## Attributions
-Uses [Manuf](https://github.com/coolbho3k/manuf) - A great module for MAC address lookup.
+* [Manuf](https://github.com/coolbho3k/manuf) - A Parser library for Wireshark's OUI database.
+* [Pcapy](https://github.com/CoreSecurity/pcapy) - Pcapy is a Python extension module that interfaces with the libpcap packet capture library.
