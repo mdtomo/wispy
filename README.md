@@ -22,7 +22,7 @@ Where '10' is the delay in seconds between channel hopping. If omitted 5 seconds
 ```
 
 ## Future Features/Ideas
-* Extra field for MAC vendor API lookup.
+* ~~Extra field for MAC vendor API lookup.~~
 * Provide alert system for specific MACs when they become active/inactive. E.g email notify.
 * Log results to a local SQLite db.
 * Run as a daemon.
