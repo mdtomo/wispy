@@ -20,9 +20,14 @@ python setup.py install
 Where 'wlan0' is the wifi interface capable of monitor mode. 
 Where '10' is the delay in seconds between channel hopping. If omitted 5 seconds is the default delay.
 ```
+## Running Tests
+From test directory:
+```
+python -m unittest test_wispy.py
+```
 
 ## Future Features/Ideas
-* ~~Extra field for MAC vendor API lookup.~~
+* ~~Extra field for MAC vendor API lookup.~~ Using [Manuf](https://github.com/coolbho3k/manuf).
 * Provide alert system for specific MACs when they become active/inactive. E.g email notify.
 * Log results to a local SQLite db.
 * Run as a daemon.
@@ -31,6 +36,6 @@ Where '10' is the delay in seconds between channel hopping. If omitted 5 seconds
 ## Licence
 This project is licensed under the MIT License - see the LICENSE.md file for details.
 
-## Attributions
+## Dependencies
 * [Manuf](https://github.com/coolbho3k/manuf) - A Parser library for Wireshark's OUI database.
 * [Pcapy](https://github.com/CoreSecurity/pcapy) - Pcapy is a Python extension module that interfaces with the libpcap packet capture library.
