@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 
 # Wispy v0.0.1
 
@@ -9,6 +8,9 @@ import time
 import threading
 import itertools
 import struct
+import os
+# Manually add path because running under root uses the system installed python and not the ENV python.
+sys.path.append(os.path.abspath('..') + '/lib/python3.6/site-packages') 
 from manuf import manuf
 
 INTERFACE = ''
@@ -32,6 +34,7 @@ def main():
         else:
             sys.exit(1)
 
+
 def start_packet_capture():
     print('Packet capture starting on ' + INTERFACE)
     time.sleep(1)
@@ -41,13 +44,14 @@ def start_packet_capture():
         try:
             header_type = capture.datalink()
             (header, pkt) = capture.next()
-            if header_type == 0x7F and len(pkt) > 0: # 0x7F/127 RadioTap header 
-                packet_handler(header, pkt)    
+            if header_type == 0x7F and len(pkt) > 0: # 0x7F/127 RadioTap header
+                print(parse_packet(header.getts(), pkt))
         except KeyboardInterrupt:
             global SHUTDOWN
             SHUTDOWN = True
             disable_monitor_mode()
             break
+
      
 def enable_monitor_mode(wifi_interface):
     try:
@@ -60,6 +64,7 @@ def enable_monitor_mode(wifi_interface):
         return True
     except:
         return False
+
               
 def disable_monitor_mode():
     print('Removing monitor interface...', end=' ')
@@ -67,23 +72,27 @@ def disable_monitor_mode():
     iw = subprocess.Popen(['iw', 'dev', INTERFACE, 'del'])
     print('OK')
     sys.exit(1)
+
        
-def packet_handler(header, pkt):
-    ts = header.getts()
-    ms = '%06i' % int(ts[1])
-    ts = time.strftime('%Y-%m-%d %H:%M:%S:', time.localtime(ts[0])) + str(ms)
-    mac = struct.unpack_from('6s', pkt, 36)
-    macstr = ':'.join(['%02x' % m for m in mac[0]])
-    chan = struct.unpack_from('<H', pkt, 18)
-    rssi = struct.unpack_from('<b', pkt, 22)
+def parse_packet(header, pkt):
+    parsed_pkt = {}
+    parsed_pkt['ts'] = header[0]
+    parsed_pkt['tsms'] = '%06i' % header[1]
+    parsed_pkt['mac'] = format_mac(struct.unpack_from('6s', pkt, 36))
+    parsed_pkt['channel'] = '%i(%02i)' % (struct.unpack_from('<H', pkt, 18)[0], CHANNEL) 
+    parsed_pkt['rssi'] = struct.unpack_from('<b', pkt, 22)[0]
     ssidlen = pkt[51]
-    print(str(ts) + ' MAC: %s CHAN: %s(%s) RSSI: %s SSID:' % (macstr, chan[0], '%02i' % CHANNEL, rssi[0]), end=' ')
     if ssidlen > 0:
-        ssid = pkt[52:52+ssidlen].decode('utf-8')
-        print('%-15s' % ssid, end=' ')
+        parsed_pkt['ssid'] = pkt[52:52+ssidlen].decode('utf-8')
     else:
-        print('<None>         ', end=' ')
-    print(MACPARSER.get_comment(macstr))
+        parsed_pkt['ssid'] = 'None'
+    parsed_pkt['vendor'] = MACPARSER.get_comment(parsed_pkt['mac'])
+    return parsed_pkt
+
+
+def format_mac(macbytes):
+    return ':'.join(['%02x' % m for m in macbytes[0]])
+
 
 def change_channel():
     global CHANNEL
@@ -95,6 +104,7 @@ def change_channel():
         else:
             break
 
+
 def start_channel_hop():
     channels = list(range(1, 12))
     global CHANNEL_ITERATOR
@@ -102,6 +112,7 @@ def start_channel_hop():
     global CHANNEL
     CHANNEL = next(CHANNEL_ITERATOR)
     threading.Thread(target=change_channel).start()
+
     
 if __name__ == '__main__':
     main()
