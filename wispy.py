@@ -1,5 +1,5 @@
 
-# Wispy v0.0.1
+# Wispy v0.0.2
 
 import sys
 import subprocess
@@ -9,7 +9,10 @@ import threading
 import itertools
 import struct
 import os
-# Manually add path because running under root uses the system installed python and not the ENV python.
+import requests
+import config
+import json
+# Manually add path to virtual env because running under root uses the system installed python and not the ENV python.
 sys.path.append(os.path.abspath('..') + '/lib/python3.6/site-packages') 
 from manuf import manuf
 
@@ -45,7 +48,10 @@ def start_packet_capture():
             header_type = capture.datalink()
             (header, pkt) = capture.next()
             if header_type == 0x7F and len(pkt) > 0: # 0x7F/127 RadioTap header
-                print(parse_packet(header.getts(), pkt))
+                if config.ENABLE_REMOTE_HOST:
+                	send_data(parse_packet(header.getts(), pkt))
+                else:
+                	print(parse_packet(header.getts(), pkt))
         except KeyboardInterrupt:
             global SHUTDOWN
             SHUTDOWN = True
@@ -76,8 +82,9 @@ def disable_monitor_mode():
        
 def parse_packet(header, pkt):
     parsed_pkt = {}
-    parsed_pkt['ts'] = header[0]
-    parsed_pkt['tsms'] = '%06i' % header[1]
+   # parsed_pkt['ts'] = header[0]
+   # parsed_pkt['tsms'] = '%06i' % header[1]
+    parsed_pkt['ts'] = str(header[0]) + str('%06i' % header[1])
     parsed_pkt['mac'] = format_mac(struct.unpack_from('6s', pkt, 36))
     parsed_pkt['channel'] = '%i(%02i)' % (struct.unpack_from('<H', pkt, 18)[0], CHANNEL) 
     parsed_pkt['rssi'] = struct.unpack_from('<b', pkt, 22)[0]
@@ -112,6 +119,27 @@ def start_channel_hop():
     global CHANNEL
     CHANNEL = next(CHANNEL_ITERATOR)
     threading.Thread(target=change_channel).start()
+
+
+def send_data(data):
+	try:	
+                header = {'Authorization': 'Bearer ' + config.TOKEN}
+                r = requests.post(config.PROBE_URL, headers=auth_header(config.TOKEN), json=data)
+                print(str(r.status_code) + ' ' + r.reason + ' ' + r.text)
+                if r.status_code == 401:
+                    msg = r.json()
+                    if msg['msg']  == 'Token has expired':
+                        print('Requesting new access token.', end=' ')
+                        r = requests.post(config.REFRESH_URL, headers=auth_header(config.REFRESH_TOKEN))
+                        msg = r.json()
+                        config.TOKEN = msg['access_token']
+                        print('OK')
+	except requests.exceptions.ConnectionError:
+		print('Host is down.')
+
+
+def auth_header(token):
+    return {'Authorization': 'Bearer ' + token}
 
     
 if __name__ == '__main__':
